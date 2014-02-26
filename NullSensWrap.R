@@ -23,17 +23,14 @@ NullSensWrap <- function(CDM, X, select = TRUE, reg_method="robust", null_reps=2
 # Yres -- Residual Responses
 # B_est -- Estimated Regression Parameters
 # sites_sel -- List Sites Selected for Analysis, per Species
-# num_sites_sel -- Number of Sites Selected per Species
 # p_value -- P-Value of Covariation Significance Test
 # index -- List of index values for random and test matrices (test is last element)
 # CR -- Pairwise Residual (Yres) Correlation Matrix  from testStatistic
 # CV -- Pairwise Residual (Yres) Covaration Matrix from testStatistic
 # R2 -- Coefficient of Multiple Determination, per species
-# Avg_R2 -- Community Averaged R2
 # Adj_R2 -- Adjusted R2, per species
+# Avg_R2 -- Community Averaged R2
 # Avg_Adj_R2 -- Community Averaged Adjusted R2
-# R2_RDA -- Coefficient of Multiple Determination, RDA Method
-# Adj_R2_RDA -- Adjusted Coefficient of Multiple Determination, RDA Method
 # summary -- abiotic, biotic, unexplained variation, per species
 # AVGsummary -- summary averaged over all species
 
@@ -41,6 +38,7 @@ NullSensWrap <- function(CDM, X, select = TRUE, reg_method="robust", null_reps=2
 # Source the support functions
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/sitesSelect.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/mvrRobust.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/coeffDet.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/nullModel.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/testStatistic.R")
 
@@ -57,7 +55,6 @@ if (length(which(CDM < 0)) > 0){
 	print('CDM contains negative abundance(s). Aborted.')
 	return()
 }
-
 #####################################################################################
 
 n <- nrow(CDM) # Number of Sites
@@ -73,6 +70,9 @@ if (reg_method == "standard") mvr_out <- mvrStandard(CDM,X,sites_sel,n,p,q)
 else if (reg_method == "robust") mvr_out <- mvrRobust(CDM,X,sites_sel,n,p,q)
 else if (reg_method == "tobit") mvr_out <- mvrTobit(CDM,X,sites_sel,n,p,q)
 else print ('Invalid regression method.')
+
+# ENVIORNMENTAL VARIATION EXPLAINED - COFF. DET.
+coeff_out <- coeffDet(CDM,X,mvr_out$Yhat)
 
 # GENERATE NULL DISTRIBUTION
 index <- c(rep(0,null_reps))
@@ -92,7 +92,13 @@ CV = tS_out$CV # Covariation matrix for test residuals
 count_for_p <- which(index >= index[null_reps]) # Number of random matrices with index greater than the test matrix
 p_value <- length(count_for_p)/null_reps # p-value of covaration significance test
 
+# TYPE OF COMMUNITY COVARIATION
+# Determine if community exhibits significant positive or negative covariation
+
+# VARIATION PARTITIONING
+
+
 #####################################################################################
 
-result = list('CDM'=CDM,'X'=X,'Yhat'=mvr_out$Yhat,'Yres'=mvr_out$Yres,'B_est'=mvr_out$B_est,'sites_sel'=sites_sel,'num_sites_sel'=mvr_out$num_sites_sel,'p_value'=p_value,'index'=index,'CR'=CR,'CR'=CV,'R2'=mvr_out$R2)
+result = list('CDM'=CDM,'X'=X,'Yhat'=mvr_out$Yhat,'Yres'=mvr_out$Yres,'B_est'=mvr_out$B_est,'sites_sel'=sites_sel,'p_value'=p_value,'test_indices'=index,'CR'=CR,'CR'=CV,'R2'=coeff_out$R2,'Adj_R2'=coeff_out$Adj_R2, 'Avg_R2'=coeff_out$Avg_R2, 'Avg_Adj_R2'=coeff_out$Avg_Adj_R2)
 }
