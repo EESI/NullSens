@@ -1,7 +1,7 @@
-NullSensWrap <- function(CDM, X, select = TRUE, reg_method="robust", null_reps=200, test_stat_type = 1, mutual_reject=7, alpha=0.05) {
+NullSensWrap <- function(CDM, X, select = TRUE, reg_method="tobit", null_reps=200, test_stat = c(1,1), mutual_reject=7, alpha=0.05) {
 
 ######################################################################################
-# 02/19/14
+# 03/25/14
 # Steven D. Essinger
 
 # INPUT DATA:
@@ -12,7 +12,9 @@ NullSensWrap <- function(CDM, X, select = TRUE, reg_method="robust", null_reps=2
 # select = TRUE (default) -- enable site selection procedure
 # reg_method = "robust" (defaut), "tobit", "standard" -- regression method
 # null_reps = 1000 (default) -- number of random matrices to generate for null distribution
-# test_stat_type = 1 (default) -- test statistic employed for computing indices
+# test_stat = c(1,1) (default) -- test statistic employed for computing indices
+# test_stat[1] = 1: abs(cvar) = 2: cvar^2 = 3: abs(ccorr) = 4: ccorr^2
+# test_stat[2] = 1: abs(cvar) = 2: abs(ccorr) = 3: sum(mutsel) = 4: 1
 # mutual_reject = 7 (default) -- ignore pairs with less than 7 mutual sites in testStatistic
 # alpha = 0.05 (default) -- significance level
 
@@ -38,6 +40,8 @@ NullSensWrap <- function(CDM, X, select = TRUE, reg_method="robust", null_reps=2
 # Source the support functions
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/sitesSelect.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/mvrRobust.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/mvrTobit.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/mvrStandard.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/coeffDet.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/nullModel.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/testStatistic.R")
@@ -59,7 +63,7 @@ if (length(which(CDM < 0)) > 0){
 
 n <- nrow(CDM) # Number of Sites
 p <- ncol(CDM) # Number of Species
-q <- ncol(X) # Number of Abiotic Factors
+q <- ncol(X) # Number of Abiotic Factors+1 (intercept)
 
 # CHOOSE SITES TO INCLUDE IN ANALYSIS
 if (select) sites_sel <- sitesSelect(CDM,X,n,p,q) # Select sites
@@ -78,11 +82,11 @@ coeff_out <- coeffDet(CDM,X,mvr_out$Yhat)
 index <- c(rep(0,null_reps))
 for (i in 1:null_reps-1){
 	rand_matrix <- nullModel(mvr_out$Yres,sites_sel)
-	tS_out <- testStatistic(rand_matrix,sites_sel,n,p,q,test_stat_type,mutual_reject)
+	tS_out <- testStatistic(rand_matrix,sites_sel,n,p,q,test_stat,mutual_reject)
 	index[i] = tS_out$index
 }
 # Index Computed on Residuals of CDM under Test
-tS_out = testStatistic(mvr_out$Yres,sites_sel,n,p,q,test_stat_type,mutual_reject)
+tS_out = testStatistic(mvr_out$Yres,sites_sel,n,p,q,test_stat,mutual_reject)
 index[i+1] = tS_out$index
 CR = tS_out$CR # Correlation matrix for test residuals
 CV = tS_out$CV # Covariation matrix for test residuals
