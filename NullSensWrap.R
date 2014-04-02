@@ -1,7 +1,7 @@
 NullSensWrap <- function(CDM, X, select = TRUE, reg_method="tobit", null_reps=200, test_stat = c(1,1), mutual_reject=7, alpha=0.05) {
 
 ######################################################################################
-# 03/25/14
+# 03/31/14
 # Steven D. Essinger
 
 # INPUT DATA:
@@ -34,7 +34,8 @@ NullSensWrap <- function(CDM, X, select = TRUE, reg_method="tobit", null_reps=20
 # Avg_R2 -- Community Averaged R2
 # Avg_Adj_R2 -- Community Averaged Adjusted R2
 # summary -- abiotic, biotic, unexplained variation, per species
-# AVGsummary -- summary averaged over all species
+# COMsummary -- abiotic, biotic, unexplained variation, community
+# COM_variation_type -- [avg_covar, p-value_pos, p_value_neg]
 
 ######################################################################################
 # Source the support functions
@@ -45,6 +46,8 @@ source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/mvrStandard.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/coeffDet.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/nullModel.R")
 source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/testStatistic.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/covariationType.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/varExpl.R")
 
 #####################################################################################
 # Check input data
@@ -80,14 +83,19 @@ coeff_out <- coeffDet(CDM,X,mvr_out$Yhat)
 
 # GENERATE NULL DISTRIBUTION
 index <- c(rep(0,null_reps))
+cTindex <- c(rep(0,null_reps))
 for (i in 1:null_reps-1){
 	rand_matrix <- nullModel(mvr_out$Yres,sites_sel)
 	tS_out <- testStatistic(rand_matrix,sites_sel,n,p,q,test_stat,mutual_reject)
-	index[i] = tS_out$index
+	index[i] <- tS_out$index
+	cT_out <- covariationType(rand_matrix,sites_sel,n,p,q,mutual_reject)
+	cTindex[i] <- cT_out
 }
 # Index Computed on Residuals of CDM under Test
-tS_out = testStatistic(mvr_out$Yres,sites_sel,n,p,q,test_stat,mutual_reject)
+tS_out <- testStatistic(mvr_out$Yres,sites_sel,n,p,q,test_stat,mutual_reject)
 index[i+1] = tS_out$index
+cT_out <- covariationType(mvr_out$Yres,sites_sel,n,p,q,mutual_reject)
+cTindex[i+1] <- cT_out
 CR = tS_out$CR # Correlation matrix for test residuals
 CV = tS_out$CV # Covariation matrix for test residuals
 
@@ -98,11 +106,20 @@ p_value <- length(count_for_p)/null_reps # p-value of covaration significance te
 
 # TYPE OF COMMUNITY COVARIATION
 # Determine if community exhibits significant positive or negative covariation
+count_for_p_pos <- which(cTindex >= cTindex[null_reps]) # Number of random matrices with average covariance greater than the test matrix
+count_for_p_neg <- which(cTindex <= cTindex[null_reps]) # Number of random matrices with average covariance less than the test matrix
+p_value_pos <- length(count_for_p_pos)/null_reps # p-value of positive covariance significance test
+p_value_neg <- length(count_for_p_neg)/null_reps # p-value of negative covariance significance test
+COM_variation_type <- list("avg_covar" = cTindex[null_reps], "p_value_pos" = p_value_pos, "p_value_neg" = p_value_neg)
 
 # VARIATION PARTITIONING
-
+# Partition variation -- abiotic, biotic, unexplained
+# var_expl_out$summary -- per species
+# var_expl_out$COMsummary -- community
+# var_expl_out <- varExpl()
 
 #####################################################################################
+# var_expl_out$summary, var_expl_out$COMsummary, COM_variation_type
 
-result = list('CDM'=CDM,'X'=X,'Yhat'=mvr_out$Yhat,'Yres'=mvr_out$Yres,'B_est'=mvr_out$B_est,'sites_sel'=sites_sel,'p_value'=p_value,'test_indices'=index,'CR'=CR,'CR'=CV,'R2'=coeff_out$R2,'Adj_R2'=coeff_out$Adj_R2, 'Avg_R2'=coeff_out$Avg_R2, 'Avg_Adj_R2'=coeff_out$Avg_Adj_R2)
+result = list('CDM'=CDM,'X'=X,'Yhat'=mvr_out$Yhat,'Yres'=mvr_out$Yres,'B_est'=mvr_out$B_est,'sites_sel'=sites_sel,'p_value'=p_value,'test_indices'=index,'CR'=CR,'CR'=CV,'R2'=coeff_out$R2,'Adj_R2'=coeff_out$Adj_R2, 'Avg_R2'=coeff_out$Avg_R2, 'Avg_Adj_R2'=coeff_out$Avg_Adj_R2, COM_variation_type)
 }
