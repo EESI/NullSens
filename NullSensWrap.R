@@ -33,7 +33,7 @@ NullSensWrap <- function(CDM, X, select = TRUE, reg_method="tobit", null_reps=20
 # Adj_R2 -- Adjusted R2, per species
 # Avg_R2 -- Community Averaged R2
 # Avg_Adj_R2 -- Community Averaged Adjusted R2
-# summary -- abiotic, biotic, unexplained variation, per species
+# INDsummary -- abiotic, biotic, unexplained variation, per species
 # COMsummary -- abiotic, biotic, unexplained variation, community
 # COM_variation_type -- [avg_covar, p-value_pos, p_value_neg]
 
@@ -114,12 +114,9 @@ COM_variation_type <- list("avg_covar" = cTindex[null_reps], "p_value_pos" = p_v
 
 # VARIATION PARTITIONING
 # Partition variation -- abiotic, biotic, unexplained
-# var_expl_out$summary -- per species
-# var_expl_out$COMsummary -- community
-# var_expl_out <- varExpl()
+var_expl_out <- varExpl(CDM,p_value,n,p,q,sites_sel,CR,coeff_out$Avg_Adj_R2,coeff_out$Adj_R2)
 
 #####################################################################################
-# var_expl_out$summary, var_expl_out$COMsummary, COM_variation_type
 
-result = list('CDM'=CDM,'X'=X,'Yhat'=mvr_out$Yhat,'Yres'=mvr_out$Yres,'B_est'=mvr_out$B_est,'sites_sel'=sites_sel,'p_value'=p_value,'test_indices'=index,'CR'=CR,'CR'=CV,'R2'=coeff_out$R2,'Adj_R2'=coeff_out$Adj_R2, 'Avg_R2'=coeff_out$Avg_R2, 'Avg_Adj_R2'=coeff_out$Avg_Adj_R2, COM_variation_type)
+result = list('CDM'=CDM,'X'=X,'Yhat'=mvr_out$Yhat,'Yres'=mvr_out$Yres,'B_est'=mvr_out$B_est,'sites_sel'=sites_sel,'p_value'=p_value,'test_indices'=index,'CR'=CR,'CR'=CV,'R2'=coeff_out$R2,'Adj_R2'=coeff_out$Adj_R2, 'Avg_R2'=coeff_out$Avg_R2, 'Avg_Adj_R2'=coeff_out$Avg_Adj_R2, 'INDsummary' = var_expl_out$INDsummary, 'COMsummary' = var_expl_out$COMsummary, 'COM_variation_type' = COM_variation_type)
 }
