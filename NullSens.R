@@ -1,8 +1,7 @@
-NullSens <- function(CDM, X, reps=200,  index_rej=7){
+NullSensWrap <- function(CDM, X, select = TRUE, reg_method="tobit", null_reps=200, test_stat = c(1,1), mutual_reject=7, alpha=0.05) {
 
 ######################################################################################
-# Version 1.0
-# 10/10/13
+# 04/02/14
 # Steve Essinger
 
 # INPUT DATA:
@@ -10,227 +9,114 @@ NullSens <- function(CDM, X, reps=200,  index_rej=7){
 # X -- Abiotic Factors (sites x factors) *Must be a matrix (i.e. use as.matrix())
 
 # INPUT PARAMETERS:
-# reps = 200 (default) -- Number of random matrices to generate for null distribution
-# index_rej = 7 (default) -- ignore covarying pairs with less than 7 mutual sites
+# select = TRUE (default) -- enable site selection procedure
+# reg_method = "robust" (defaut), "tobit", "standard" -- regression method
+# null_reps = 1000 (default) -- number of random matrices to generate for null distribution
+# test_stat = c(1,1) (default) -- test statistic employed for computing indices
+# test_stat[1] = 1: abs(cvar) = 2: cvar^2 = 3: abs(ccorr) = 4: ccorr^2
+# test_stat[2] = 1: abs(cvar) = 2: abs(ccorr) = 3: sum(mutsel) = 4: 1
+# mutual_reject = 7 (default) -- ignore pairs with less than 7 mutual sites in testStatistic
+# alpha = 0.05 (default) -- significance level
 
-# OUTPUT RETURNED:
+# OUTPUT DATA:
 # CDM -- Community Data Matrix
 # X -- Abiotic Factors, vector of ones appended if missing
 # Yhat -- Predicted (fitted) responses
 # Yres -- Residual Responses
-# BP -- Estimated Regression Parameters
-# SitesSel -- Sites Selected for Analysis, per Species
-# NN -- Number of Sites Selected per Species
-# PRSqYres -- P-Value of Covariation Significance Test
-# AvgRSqYres -- Index value of random and test matrices
-# CR -- Pairwise Residual (Yres) Correlation Matrix (using SitesSel)
-# CV -- Pairwise Residual (Yres) Covaration Matrix (using SitesSel)
+# B_est -- Estimated Regression Parameters
+# sites_sel -- List Sites Selected for Analysis, per Species
+# p_value -- P-Value of Covariation Significance Test
+# index -- List of index values for random and test matrices (test is last element)
+# CR -- Pairwise Residual (Yres) Correlation Matrix  from testStatistic
+# CV -- Pairwise Residual (Yres) Covaration Matrix from testStatistic
 # R2 -- Coefficient of Multiple Determination, per species
-# Avg_R2 -- Community Averaged R2
 # Adj_R2 -- Adjusted R2, per species
+# Avg_R2 -- Community Averaged R2
 # Avg_Adj_R2 -- Community Averaged Adjusted R2
-# R2_RDA -- Coefficient of Multiple Determination, RDA Method
-# Adj_R2_RDA -- Adjusted Coefficient of Multiple Determination, RDA Method
-# summary -- abiotic, biotic, unexplained variation, per species
-# AVGsummary -- summary averaged over all species
-######################################################################################
+# INDsummary -- abiotic, biotic, unexplained variation, per species
+# COMsummary -- abiotic, biotic, unexplained variation, community
+# COM_variation_type -- [avg_covar, p-value_pos, p_value_neg]
 
+######################################################################################
+# Source the support functions
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/sitesSelect.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/mvrRobust.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/mvrTobit.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/mvrStandard.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/coeffDet.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/nullModel.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/testStatistic.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/covariationType.R")
+source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/varExpl.R")
+
+#####################################################################################
+# Check input data
 # Insert column of ones in X if missing
-if (identical(X[,1],matrix(1,nrow(X),1))==FALSE){
+if (identical(X[,1],c(rep(1,nrow(X))))==FALSE){
 	print('X missing column of ones. Automatically included.')
 	X <- cbind(matrix(1,nrow(X),1),X)
 }
 
+# Check CDM for negative abundances
 if (length(which(CDM < 0)) > 0){
-	print('CDM contains negative abundances. Aborted.')
+	print('CDM contains negative abundance(s). Aborted.')
 	return()
 }
+#####################################################################################
 
 n <- nrow(CDM) # Number of Sites
 p <- ncol(CDM) # Number of Species
-q <- ncol(X) # Number of Abiotic Factors
+q <- ncol(X) # Number of Abiotic Factors+1 (intercept)
 
-SitesSel <- vector('list',p) # Stores Sites Selected for each Species
-BP <- matrix(0,q,p)  # Regression Parameters
-Yhat <- matrix(0,n,p) # Predicted (Fitted) Species Responses
-Yres <- matrix(0,n,p) # Residual Species Responses
-R2 <- c(rep(0,p)) # Coefficient of multiple determination
-NN <- c(rep(0,p)) # Number of Sites included in R2 calculation (Number of SitesSel)
+# CHOOSE SITES TO INCLUDE IN ANALYSIS
+if (select) sites_sel <- sitesSelect(CDM,X,n,p,q) # Select sites
+else sites_sel <- list(rep(list(rep(TRUE,n)),p)) # Include all sites
 
-# Site Selection and SitesSelion
-for (i in 1:p){ # For each species
-	posAb <- which(CDM[,i] > 0) # Choose sites with positive abundance for theshold
-	remove <- NA # initialize sites for removal
-	centroid <- c(rep(0,q)) 
-	thresh <- c(rep(0,q))
-	
-	for (grad in 2:q){ # For each abiotic factor
-		centroid[grad] <- quantile(X[posAb,grad],0.5) # Centroid of positive abundance
-		distance_pos <- as.matrix(dist(c(centroid[grad],X[posAb,grad]))) # distance of positive abundances to centroid
-		thresh[grad] <- mean(distance_pos[-1,1]) + sd(distance_pos[-1,1]) # threshold for site selection
-	
-		distance_all <- as.matrix(dist(c(centroid[grad],X[,grad]))) # Distance of all sites (positive and zero) to centroid
-		remove_temp <- which(distance_all[-1,1] > thresh[grad]) # remove sites beyond threshold from further analysis
-		remove <- c(remove,remove_temp) # keep a list of all sites removed for each species
-	}
-	
-	keep = setdiff(1:n,remove) # Keep sites not marked for removal
-	SitesSel[[i]] <- c(rep(FALSE,n))
-	if (length(keep) > 3){ # remove species with < 4 selected sites from analysis
-		SitesSel[[i]][keep] = TRUE	
-	}
-	
-	# Regression Parameter Estimation -- Normal Equation
-	tryCatch({
-		BP[,i] <- solve(t(X[SitesSel[[i]],])%*%X[SitesSel[[i]],])%*%t(X[SitesSel[[i]],])%*%CDM[SitesSel[[i]],i]	
-	}, error = function(ex) {
-		paste('Inverse computation -- singular. Cannot compute regression parameters for Species', i) # solve fails due to singular (X'*X) given SitesSel[[i]]
-	})
-	
-	rmnan <- which(BP[,i]==NA)
-	BP[rmnan,i] <- 0
-	
-	Yhat[,i] <- X %*% BP[,i] # Compute fitted values
-	rmneg <- which(Yhat[,i]<=0) # Remove negative fitted abundances
-	Yhat[rmneg,i] = 0
-	Yres[,i] <- CDM[,i]-Yhat[,i] # Compute Residuals
+# CHOOSE MULTIVARIATE REGRESSION METHOD
+if (reg_method == "standard") mvr_out <- mvrStandard(CDM,X,sites_sel,n,p,q)
+else if (reg_method == "robust") mvr_out <- mvrRobust(CDM,X,sites_sel,n,p,q)
+else if (reg_method == "tobit") mvr_out <- mvrTobit(CDM,X,sites_sel,n,p,q)
+else print ('Invalid regression method.')
 
-	# Compute the squared correlation for R2 Value
-	if (sum(SitesSel[[i]]) > q+1){
-		R2[i] <- cor(Yhat[SitesSel[[i]],i],CDM[SitesSel[[i]],i])^2
-		NN[i] <- sum(SitesSel[[i]]) # Number of sites included in R2 calculation
-	} else {
-		R2[i] <- 0
-		NN[i] <- 0
-	}
+# ENVIORNMENTAL VARIATION EXPLAINED - COFF. DET.
+coeff_out <- coeffDet(CDM,X,mvr_out$Yhat)
+
+# GENERATE NULL DISTRIBUTION
+index <- c(rep(0,null_reps))
+cTindex <- c(rep(0,null_reps))
+for (i in 1:null_reps-1){
+	rand_matrix <- nullModel(mvr_out$Yres,sites_sel)
+	tS_out <- testStatistic(rand_matrix,sites_sel,n,p,q,test_stat,mutual_reject)
+	index[i] <- tS_out$index
+	cT_out <- covariationType(rand_matrix,sites_sel,n,p,q,mutual_reject)
+	cTindex[i] <- cT_out
 }
+# Index Computed on Residuals of CDM under Test
+tS_out <- testStatistic(mvr_out$Yres,sites_sel,n,p,q,test_stat,mutual_reject)
+index[i+1] = tS_out$index
+cT_out <- covariationType(mvr_out$Yres,sites_sel,n,p,q,mutual_reject)
+cTindex[i+1] <- cT_out
+CR = tS_out$CR # Correlation matrix for test residuals
+CV = tS_out$CV # Covariation matrix for test residuals
 
-# Weighted Community Averaged R2
-Avg_R2 <- sum(R2*colSums(CDM))/sum(CDM)
+# SIGNIFICANCE TEST
+# Determine if residuals of CDM covary significantly via p-value
+count_for_p <- which(index >= index[null_reps]) # Number of random matrices with index greater than the test matrix
+p_value <- length(count_for_p)/null_reps # p-value of covaration significance test
 
-# Weighted Community Averaged Adjusted R2
-Adj_R2 <- 1-((1-R2)*(NN-1)/(NN-q-1))
-setzero <- which(R2 == 0)
-Adj_R2[setzero] <- 0
-Avg_Adj_R2 <- sum(Adj_R2*colSums(CDM))/sum(CDM)
+# TYPE OF COMMUNITY COVARIATION
+# Determine if community exhibits significant positive or negative covariation
+count_for_p_pos <- which(cTindex >= cTindex[null_reps]) # Number of random matrices with average covariance greater than the test matrix
+count_for_p_neg <- which(cTindex <= cTindex[null_reps]) # Number of random matrices with average covariance less than the test matrix
+p_value_pos <- length(count_for_p_pos)/null_reps # p-value of positive covariance significance test
+p_value_neg <- length(count_for_p_neg)/null_reps # p-value of negative covariance significance test
+COM_variation_type <- list("avg_covar" = cTindex[null_reps], "p_value_pos" = p_value_pos, "p_value_neg" = p_value_neg)
 
-# Compute Adjusted RDA R2 -- using approach from RDA in vegan package
-CDMM <- (diag(n)-1/n*matrix(1,n,n))%*%CDM # Center CDM
-M <- colMeans(X)
-XM <- matrix(0,n,q-1)
-for (i in 1:(q-1)){
-	XM[,i] <- X[,i+1]-M[i+1] # Remove means from abiotic factors
-}
-Yhat_RDA <- XM %*% solve(t(XM) %*% XM) %*% t(XM) %*% CDMM
-R2_RDA <- sum(diag(t(Yhat_RDA) %*% Yhat_RDA))/sum(diag(t(CDMM) %*% CDMM))
-Adj_R2_RDA <- 1-(1-R2_RDA)*(n-1)/(n-q-1); 
+# VARIATION PARTITIONING
+# Partition variation -- abiotic, biotic, unexplained
+var_expl_out <- varExpl(CDM,p_value,n,p,q,sites_sel,CR,coeff_out$Avg_Adj_R2,coeff_out$Adj_R2)
 
-# Nullmodel and Index Computation
-# reps: Number of random matrices generated in nullmodel
-AvgRSqYres <- c(rep(0,reps))
-for (i in 1:(reps-1)){
-	# Nullmodel - generates random matrices
-	RANDYres <- Yres # For each randomization always start with original Yres
-	for (species in 1:p){
-		permNon <- which(SitesSel[[species]]==TRUE)
-		neworderNon <- sample(permNon, length(permNon), replace = FALSE, prob = NULL)
-		RANDYres[permNon,species] <- Yres[neworderNon,species]
-	}
-	# Index calculation
-	w <- 0
-	AvgRSq <- 0
-	for (species1 in 1:(p-1)){
-		for (species2 in (species1+1):p){
-			  temp <- SitesSel[[species1]] & SitesSel[[species2]] # Choose mutually selected sites of both species in pair
-			  if (sum(temp) <= n*0.05 | sum(temp) <= index_rej){
-			  	cvar <- 0
-			  }	else {
-			  	COV = cov(RANDYres[temp,c(species1,species2)]) # Covariance
-			  	if (is.na(COV[1,2]) == TRUE | COV[1,2] == 0){
-	           	cvar <- 0
-	           } else {
-	            	cvar <- COV[1,2];
-	           } 
-	         }
-	         AvgRSq <- AvgRSq + cvar^2; # Index Calculation
-	         w <- w + abs(cvar); # Weights for averaging the index
-		}
-	}
-	if (w == 0){
-		AvgRSqYres[i] <- 0
-	} else {
-		AvgRSqYres[i] <- AvgRSq/w  # Index of random matrix i of reps
-	}
-}
+#####################################################################################
 
-# Computation of index on CDM under test
-w <- 0
-AvgRSq <- 0
-CR <- matrix(0,p-1,p)
-CV <- matrix(0,p-1,p)
-for (species1 in 1:(p-1)){
-	for (species2 in (species1+1):p){
-		  temp <- SitesSel[[species1]] & SitesSel[[species2]]
-		  if (sum(temp) <= n*0.05 | sum(temp) <= index_rej){
-		  	cvar <- 0
-		  }	else {
-		  	options(warn=-1) # Turn warnings off: OK for cor to return NA
-		  	COV = cov(Yres[temp,c(species1,species2)]) # Covariation
-		  	CORR = cor(Yres[temp,c(species1,species2)]) # Correlation
-		  	if (is.na(COV[1,2]) == TRUE | COV[1,2] == 0){
-           		cvar <- 0
-           		CV[species1,species2] <- cvar
-           		CR[species1,species2] <- 0
-           } else {
-            	cvar <- COV[1,2];
-            	CV[species1,species2] <- cvar # Keep track of pairwise covariance
-           		CR[species1,species2] <- CORR[1,2] # Tracking of pairwise correlation
-           } 
-           options(warn=0) # Warnings back on
-         }
-         AvgRSq <- AvgRSq + cvar^2; # Index Calculation
-         w <- w + abs(cvar); # Weights for averaging the index
-	}
-}
-if (w == 0){
-	AvgRSqYres[reps] <- 0
-} else {
-	AvgRSqYres[reps] <- AvgRSq/w  # Index of test matrix
-}
-
-# Get P-Values to determine if residuals of CDM covary significantly
-indRYres <- which(AvgRSqYres >= AvgRSqYres[reps]) # Number of random matrices with index greater than the test matrix
-PRSqYres <- length(indRYres)/reps # P-value of covaration significance test
-
-# Return Abiotic, Biotic, Unexplained Variances
-absum <- c(rep(0,p)) # Compute raw abundance totals for each species
-for (i in 1:p){
-	absum[i] <- sum(CDM[SitesSel[[i]],i])
-}
-if (PRSqYres > 0.05){ # If no significant covariation found
-	summary <- cbind(Adj_R2,matrix(0,p,1),1-Adj_R2) # Abiotic, Biotic, Unexplained
-	AVGsummary <- cbind(sum(Avg_Adj_R2*absum)/sum(absum),0,sum((1-Avg_Adj_R2)*absum)/sum(absum)) # Summary Averaged
-} else{ # If significant covariation found
-	sumENV <- Adj_R2
-	unexp <- 1-sumENV # Abiotic variation explained
-	cr <- rbind(CR,matrix(0,1,p))
-	BR <- cr + t(cr)
-	BR2 <- BR^2 # Squared correlation matrix of pairwise species
-	pair <- apply(BR2,2,max) # Max squared correlation value for each species
-	ind <- apply(BR2,2,which.max) # index of species pair with max correlation
-	sumBIO <- pair*unexp # Biotic variation computation
-	sumUNX <- matrix(1,p,1)-sumENV-sumBIO # Remainder variation is unexplained
-	summary <- cbind(sumENV,sumBIO,sumUNX) # Abiotic, Biotic, Unexplained Variation
-	AVGsummary = cbind(sum(sumENV*absum)/sum(absum), sum(sumBIO*absum)/sum(absum),sum(sumUNX*absum)/sum(absum)) # Summary Averaged, weighted by abundance
-}
-
-result = list('CDM'=CDM,'X'=X,'Yhat'=Yhat,'Yres'=Yres,'BP'=BP,'SitesSel'=SitesSel,'NN'=NN,'PRSqYres'=PRSqYres,'AvgRSqYres'=AvgRSqYres,'CR'=CR,'CV'=CV,'R2'=R2,'Avg_R2'=Avg_R2,'Adj_R2'=Adj_R2,'Avg_Adj_R2'=Avg_Adj_R2,'R2_RDA'=R2_RDA,'Adj_R2_RDA'=Adj_R2_RDA,'summary'=summary,'AVGsummary'=AVGsummary)
-
-print('PRSqYres =')
-print(PRSqYres)
-colnames(AVGsummary) <- c('Abiotic','Biotic','Unexplained')
-print('Community Variation Partitioned')
-print(AVGsummary)
-
-return(result)
+result = list('CDM'=CDM,'X'=X,'Yhat'=mvr_out$Yhat,'Yres'=mvr_out$Yres,'B_est'=mvr_out$B_est,'sites_sel'=sites_sel,'p_value'=p_value,'test_indices'=index,'CR'=CR,'CR'=CV,'R2'=coeff_out$R2,'Adj_R2'=coeff_out$Adj_R2, 'Avg_R2'=coeff_out$Avg_R2, 'Avg_Adj_R2'=coeff_out$Avg_Adj_R2, 'INDsummary' = var_expl_out$INDsummary, 'COMsummary' = var_expl_out$COMsummary, 'COM_variation_type' = COM_variation_type)
 }
