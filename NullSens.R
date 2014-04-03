@@ -1,4 +1,4 @@
-NullSensWrap <- function(CDM, X, select = TRUE, reg_method="tobit", null_reps=200, test_stat = c(1,1), mutual_reject=7, alpha=0.05) {
+NullSens <- function(CDM, X, select = TRUE, reg_method="tobit", null_reps=200, test_stat = c(1,1), mutual_reject=7, alpha=0.05) {
 
 ######################################################################################
 # 04/02/14
