@@ -1,8 +1,5 @@
 NullSens_Simulation <- function(n,p,q,N,M,CD,Type,num_exp=100,select = TRUE,reg_method="robust",null_reps=200,test_stat = c(1,1),mutual_reject=7,alpha=0.05) {
 
-source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/SpeciesResponseModel.R")
-source("/Users/Dizzy/Desktop/NullSens_R/NullSens-R/NullSens.R")
-
 Noise = c(0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,2) # Noise Parameters
 Magnitude = Noise[N]*c(1,3,5,10,20) # Covariation Magnitude Parameters
 
@@ -15,7 +12,7 @@ p_values <- c(rep(0,num_exp))
 tic() # Start the stopwatch
 for (exp in 1:num_exp) {
 	# Generate Simulations using Species Response Model
-	SRM <- SpeciesResponseModel(100,20,2,2,3,0,2,Noise,Magnitude)
+	SRM <- SpeciesResponseModel(n,p,q,N,M,CD,Type,Noise,Magnitude)
 	# Run NullSens on the Simulated Data
 	results <- NullSens(SRM$CDM,SRM$X)
 	# Store the results
@@ -36,7 +33,7 @@ if (avg_detection_rate > 0) {
 }
 avg_detection_type <- list(num_sig_pos,num_sig_neg)
 
-'run_time' = toc() # Total Elapsed Time
+'run_time' = toc() # Total Elapsed Time (seconds)
 
 # Summarize all input parameters
 Parameters <- list('n'=n,'p'=p,'q'=q,'N'=N,'M'=M,'CD'=CD,'Type'=Type,'num_exp'=num_exp,'select'=select,'reg_method'=reg_method,'null_reps'=null_reps,'test_stat'=test_stat,'mutual_reject'=mutual_reject,'alpha'=alpha)
@@ -65,4 +62,5 @@ toc <- function()
    tic <- get(".tic", envir=baseenv())
    #print(toc - tic)
    invisible(toc)
+   return(toc-tic)
 }
