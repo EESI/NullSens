@@ -15,7 +15,7 @@ for (i in 1:p) { # For each species
 	rmnan <- which(B_est[,i]==NA)
 	B_est[rmnan,i] <- 0
 	
-	Yhat[,i] <- X %*% B_est[,i] # Compute fitted values
+	Yhat[sites_sel[[i]],i] <- X[sites_sel[[i]],] %*% B_est[,i] # Compute fitted values
 	rmneg <- which(Yhat[,i]<=0) # Remove negative fitted abundances
 	Yhat[rmneg,i] = 0
 	Yres[,i] <- CDM[,i]-Yhat[,i] # Compute Residuals

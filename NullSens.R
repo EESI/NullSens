@@ -77,13 +77,13 @@ for (i in 1:null_reps-1){
 	rand_matrix <- nullModel(mvr_out$Yres,sites_sel)
 	tS_out <- testStatistic(rand_matrix,sites_sel,n,p,q,test_stat,mutual_reject)
 	index[i] <- tS_out$index
-	cT_out <- covariationType(rand_matrix,sites_sel,n,p,q,mutual_reject)
+	cT_out <- covStatistic(rand_matrix,sites_sel,mutual_reject)
 	cTindex[i] <- cT_out
 }
 # Index Computed on Residuals of CDM under Test
 tS_out <- testStatistic(mvr_out$Yres,sites_sel,n,p,q,test_stat,mutual_reject)
 index[i+1] = tS_out$index
-cT_out <- covariationType(mvr_out$Yres,sites_sel,n,p,q,mutual_reject)
+cT_out <- covStatistic(mvr_out$Yres,sites_sel,mutual_reject)
 cTindex[i+1] <- cT_out
 CR = tS_out$CR # Correlation matrix for test residuals
 CV = tS_out$CV # Covariation matrix for test residuals
@@ -103,7 +103,7 @@ COM_variation_type <- list("avg_covar" = cTindex[null_reps], "p_value_pos" = p_v
 
 # VARIATION PARTITIONING
 # Partition variation -- abiotic, biotic, unexplained
-var_expl_out <- varExpl(CDM,p_value,n,p,q,sites_sel,CR,coeff_out$Avg_Adj_R2,coeff_out$Adj_R2)
+var_expl_out <- varExplained(CDM,p_value,n,p,q,sites_sel,CR,coeff_out$Avg_Adj_R2,coeff_out$Adj_R2)
 
 #####################################################################################
 
