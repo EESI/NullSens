@@ -1,4 +1,8 @@
-testStatistic <- function(matrix,sites_sel,n,p,q,test_stat,mutual_reject) {
+testStatistic <-
+function(matrix,sites_sel,test_stat,mutual_reject) {
+
+n <- nrow(matrix) # Number of Sites
+p <- ncol(matrix) # Number of Species
 
 w <- 0
 AvgRSq <- 0

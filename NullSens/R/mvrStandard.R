@@ -1,4 +1,9 @@
-mvrStandard <- function(CDM,X,sites_sel,n,p,q) {	
+mvrStandard <-
+function(CDM,X,sites_sel) {	
+
+n <- nrow(matrix) # Number of sites
+p <- ncol(matrix) # Number of species
+q <- ncol(X) # Number of abotic factors + intercept
 
 B_est <- matrix(0,q,p)  # Regression Parameters
 Yhat <- matrix(0,n,p) # Predicted (Fitted) Species Responses
@@ -15,7 +20,7 @@ for (i in 1:p) { # For each species
 	rmnan <- which(B_est[,i]==NA)
 	B_est[rmnan,i] <- 0
 	
-	Yhat[sites_sel[[i]],i] <- X[sites_sel[[i]],] %*% B_est[,i] # Compute fitted values
+	Yhat[,i] <- X %*% B_est[,i] # Compute fitted values
 	rmneg <- which(Yhat[,i]<=0) # Remove negative fitted abundances
 	Yhat[rmneg,i] = 0
 	Yres[,i] <- CDM[,i]-Yhat[,i] # Compute Residuals

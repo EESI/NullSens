@@ -1,4 +1,4 @@
-varExpl <- function(CDM,PRSqYres,n,p,q,sites_sel,CR,Avg_Adj_R2,Adj_R2) {
+varExplained <- function(CDM,PRSqYres,n,p,q,sites_sel,CR,Avg_Adj_R2,Adj_R2) {
 
 # Return Abiotic, Biotic, Unexplained Variances
 absum <- c(rep(0,p)) # Compute raw abundance totals for each species

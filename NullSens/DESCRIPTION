@@ -1,0 +1,10 @@
+Package: NullSens
+Title: Partitioning Abiotic and Biotic Contributions to Community Variation
+Version: 1.0
+Date: April 15, 2014
+Author: Steven D. Essinger, Christopher B. Blackwood, Gail L. Rosen
+Maintainer: Steve Essinger <sde22@drexel.edu>
+Description: NullSens is a method for verifying hypotheses on species interactions when environmental gradients are present
+Depends: R (>= 2.15.0), MASS, censReg
+License: GPL-3
+URL: http://www.github.com/sessinger/NullSens/

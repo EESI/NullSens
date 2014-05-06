@@ -1,4 +1,7 @@
-varExpl <- function(CDM,PRSqYres,n,p,q,sites_sel,CR,Avg_Adj_R2,Adj_R2) {
+varExplained <-
+function(CDM,p_value,sites_sel,CR,Avg_Adj_R2,Adj_R2,alpha) {
+
+p <- ncol(CDM) # Number of Species
 
 # Return Abiotic, Biotic, Unexplained Variances
 absum <- c(rep(0,p)) # Compute raw abundance totals for each species
@@ -6,7 +9,7 @@ for (i in 1:p){
 	absum[i] <- sum(CDM[sites_sel[[i]],i])
 }
 
-if (PRSqYres > 0.05){ # If no significant covariation found
+if (p_value > alpha){ # If no significant covariation found
 	env = Adj_R2; bio = matrix(0,p,1); unx = 1-Adj_R2
 	ENV = Avg_Adj_R2; BIO = 0; UNX = 1-Avg_Adj_R2
 	IND_summary <- cbind(Adj_R2,matrix(0,p,1),1-Adj_R2) # Abiotic, Biotic, Unexplained, per species
