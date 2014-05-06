@@ -1,0 +1,20 @@
+NullSens                Partitioning Abiotic and Biotic Contributions
+                        to Community Variation
+NullSens-package        NullSens: Partitioning Abiotic and Biotic
+                        Contributions to Community Variation
+NullSens_Simulation     Evaluating NullSens on Simulated Community Data
+SpeciesResponseModel    Species Response Model - for use with
+                        simulations
+coeffDet                Compute the coefficient of determination
+covStatistic            Test for significant positive/negative
+                        community covariation.
+mvrRobust               Robust Regression using bisquare estimator
+                        objective function
+mvrStandard             OLS Linear Regression
+mvrTobit                Censored Regression (Tobit) Model
+nullModel               Null model
+sitesSelect             Site Selection Procedure
+testStatistic           Test Statistic for Significant Covariation Test
+tic                     Start of Stopwatch
+toc                     Stopwatch Stop
+varExplained            Partitioning Abiotic and Biotic Variation
