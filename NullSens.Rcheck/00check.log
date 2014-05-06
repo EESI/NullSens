@@ -1,4 +1,4 @@
-* using log directory ‘/Users/Dizzy/Desktop/NullSens_R/NullSens/NullSens.Rcheck’
+* using log directory ‘/Users/Dizzy/Desktop/EESI NullSens/NullSens/NullSens.Rcheck’
 * using R version 2.15.3 Patched (2013-03-13 r62287)
 * using platform: x86_64-apple-darwin9.8.0 (64-bit)
 * using session charset: UTF-8
@@ -51,5 +51,5 @@ tic
 * checking PDF version of manual ... OK
 WARNING: There was 1 warning.
 See
-  ‘/Users/Dizzy/Desktop/NullSens_R/NullSens/NullSens.Rcheck/00check.log’
+  ‘/Users/Dizzy/Desktop/EESI NullSens/NullSens/NullSens.Rcheck/00check.log’
 for details.
